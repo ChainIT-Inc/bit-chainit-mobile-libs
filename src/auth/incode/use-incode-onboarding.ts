@@ -250,7 +250,7 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
           { module: 'Approve' },
         ],
         sessionConfig: {
-          configurationId: '65fc8b6fcc45a1c10026243e',
+          configurationId: onboardingFlowId,
           interviewId: _interviewId as string,
           validationModules: ['id', 'liveness', 'faceRecognition'],
         },
@@ -515,6 +515,7 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
             approveCalledRef.current = null;
           } else {
             handleError(AuthErrorMessageEnum.SELFIE_FAILED);
+            finishOnboarding('SignUpError');
           }
         },
       }),
