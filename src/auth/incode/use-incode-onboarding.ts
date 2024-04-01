@@ -4,7 +4,7 @@ import {
   getErrorMessage,
   type IncodeOcrResult,
 } from '@bit-ui-libs/common';
-import axios from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 import { decode } from 'base-64';
 import { jwtDecode, type JwtPayload } from 'jwt-decode';
 import type { Result } from 'neverthrow';
@@ -21,7 +21,6 @@ import {
   setInterviewId,
 } from '../auth.utils';
 import { isUserOverEighteen } from '../check-user-birthday';
-import { getParsedPhone } from '../phone-number';
 import { useUserStore } from '../user.store';
 import {
   Incode,
@@ -75,22 +74,13 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
   const timesCalledRef = useRef(0);
   const approveCalledRef = useRef<Boolean | null>(null);
   const selfieScanSuccess = useRef<Boolean | null>(null);
-  // const approveCalledRef = useRef(null);
-  // const navigation = useNavigation();
 
-  const {
-    authMode,
-    setPhotoPath,
-    setOCRData,
-    setSignUpPhone,
-    setSignUpPhoneCode,
-  } = useAuthStore();
+  const { authMode, setPhotoPath, setOCRData } = useAuthStore();
   const [addLoading, setAddLoading] = useState(false);
   const [skipLoading, setSkipLoading] = useState(false);
   const [screenLoading, setScreenLoading] = useState(false);
   const [step, setStep] = useState('Auth0Complete');
   const [showPrivacyConsent, setShowPrivacyConsent] = useState<boolean>(false);
-  // const toast = useToast({ namespace: 'Face Recognition' });
   const { shouldInitialize } = opts;
 
   const finishOnboarding = useCallback(
@@ -108,7 +98,6 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
   const handleError = useCallback((message: string) => {
     setSessionMessage('');
     setErrorMessage(message);
-    // toast.error(message);
     globalLogger.error(message);
     setIncodeActive(false);
     setHasError(true);
@@ -248,24 +237,22 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
       globalLogger.debug('interviewId', interviewId);
       globalLogger.debug('sessionToken', sessionToken);
       const _interviewId = interviewId?.current || (await getInterviewId());
-      if (sessionToken) {
-        // @ts-ignore
-        // const email = jwtDecode(sessionToken)['email'] as string | undefined;
-        // globalLogger.debug('email', email);
-      }
+
       globalLogger.info(
         'Calling Incode.startOnboarding with interviewId: ',
         _interviewId
       );
       const onboardingResponse = await Incode.getInstance().startOnboarding({
         flowConfig: [
-          // "Phone" is bugged on some iPhones
           { module: 'SelfieScan' },
+          { module: 'IdScan' },
+          { module: 'FaceMatch' },
           { module: 'Approve' },
         ],
         sessionConfig: {
           configurationId: onboardingFlowId,
           interviewId: _interviewId as string,
+          validationModules: ['id', 'liveness', 'faceRecognition'],
         },
       });
       globalLogger.info('Incode.startOnboarding response:', onboardingResponse);
@@ -282,20 +269,16 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
       }
       handleError(AuthErrorMessageEnum.USER_CANCELED_SELFIE_SCAN);
     } catch (e) {
-      globalLogger.error(e);
+      globalLogger.error('startOnboarding', e);
+      handleError(getErrorMessage(e));
       finishOnboarding('SignUpError');
     }
   }, [
-    setScreenLoading,
-    setSessionMessage,
-    setFlowType,
     requestPhotoPermissions,
     showAppSettingsModal,
-    interviewId,
     sessionToken,
-    onboardingFlowId,
     handleError,
-    setSkipLoading,
+    signUp,
     finishOnboarding,
   ]);
 
@@ -388,17 +371,6 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
     const complete = Incode.getInstance().onStepCompleted;
     return [
       complete({
-        module: 'Phone',
-        listener: (e) => {
-          globalLogger.info('Phone completed:', e);
-          const { formattedPhone, countryCode } = getParsedPhone(
-            e.result.phone
-          );
-          setSignUpPhone(formattedPhone);
-          setSignUpPhoneCode(countryCode);
-        },
-      }),
-      complete({
         module: 'SelfieScan',
         listener: (e) => {
           globalLogger.info(
@@ -436,6 +408,7 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
       complete({
         module: 'ProcessId',
         listener: async (e) => {
+          globalLogger.info('ProcessId called');
           try {
             const ocrResult = e.result as IncodeOcrResult;
             globalLogger.info('ProcessId complete', ocrResult);
@@ -443,18 +416,38 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
               finishOnboarding('UserUnderEighteen');
               return;
             }
+
+            try {
+              const validationApiUrl = `https://demo-api.incodesmile.com/0/omni/process/government-validation`;
+              const opts: AxiosRequestConfig = {
+                method: 'POST',
+                headers: {
+                  'api-version': '1.0',
+                  'X-Incode-Hardware-Id': incodeSessionToken.current,
+                },
+              };
+              globalLogger.debug(
+                'Calling government-validation API:',
+                validationApiUrl,
+                JSON.stringify(opts)
+              );
+              const validationRes = await axios
+                .create({})
+                .post(validationApiUrl, {}, opts);
+              globalLogger.debug(
+                'government-validation API response:',
+                JSON.stringify(validationRes)
+              );
+            } catch (err) {
+              globalLogger.error('Government Validation error:', err);
+            }
+
             setOCRData(ocrResult);
           } catch (err) {
             globalLogger.error(err);
             handleError('Failed to process your ID');
             finishOnboarding('SignUpError');
           }
-        },
-      }),
-      complete({
-        module: 'UserScore',
-        listener: (e) => {
-          globalLogger.info('User Score completed', e.result);
         },
       }),
       complete({
@@ -522,6 +515,7 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
             approveCalledRef.current = null;
           } else {
             handleError(AuthErrorMessageEnum.SELFIE_FAILED);
+            finishOnboarding('SignUpError');
           }
         },
       }),
@@ -529,8 +523,6 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
   }, [
     interviewId,
     incodeSessionToken,
-    setSignUpPhone,
-    setSignUpPhoneCode,
     compressImage,
     setPhotoPath,
     handleError,
