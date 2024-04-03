@@ -39,6 +39,9 @@ const IncodeMock = {
   onStepCompleted: () => {
     return;
   },
+  onStepError: () => {
+    return;
+  },
   startOnboarding: (): Promise<OnboardingResponse> => {
     return Promise.resolve({ status: 'success' });
   },

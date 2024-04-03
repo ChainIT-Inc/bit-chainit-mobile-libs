@@ -237,6 +237,8 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
       globalLogger.debug('interviewId', interviewId);
       globalLogger.debug('sessionToken', sessionToken);
       const _interviewId = interviewId?.current || (await getInterviewId());
+      const _incodeSessionToken =
+        interviewId?.current || (await getIncodeToken());
 
       globalLogger.info(
         'Calling Incode.startOnboarding with interviewId: ',
@@ -262,9 +264,44 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
         if (Incode.skip) {
           await signUp('testmode', 'testmode', 'testmode');
         }
-        setScreenLoading(false);
-        setSkipLoading(false);
-        Incode.getInstance().finishOnboardingFlow();
+
+        try {
+          const validationApiUrl = `https://demo-api.incodesmile.com/0/omni/get/score?id=${_interviewId}`;
+
+          let config = {
+            method: 'get',
+            url: validationApiUrl,
+            headers: {
+              'api-version': '1.0',
+              'X-Incode-Hardware-Id': _incodeSessionToken,
+            },
+          };
+
+          globalLogger.debug(
+            'Calling User Score API:',
+            validationApiUrl,
+            JSON.stringify(config)
+          );
+
+          const { data: score } = await axios.request(config);
+
+          globalLogger.info('Score:', JSON.stringify(score));
+          if (score?.overall?.status == 'FAIL') {
+            handleError(
+              score?.reasonMsg || AuthErrorMessageEnum.BAD_REQUEST_ERROR
+            );
+            finishOnboarding('SignUpError');
+          } else {
+            setScreenLoading(false);
+            setSkipLoading(false);
+            Incode.getInstance().finishOnboardingFlow();
+          }
+        } catch (e) {
+          globalLogger.error('Score error:', e);
+          handleError(AuthErrorMessageEnum.BAD_REQUEST_ERROR);
+          finishOnboarding('SignUpError');
+        }
+
         return;
       }
       handleError(AuthErrorMessageEnum.USER_CANCELED_SELFIE_SCAN);
@@ -277,6 +314,7 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
     requestPhotoPermissions,
     showAppSettingsModal,
     sessionToken,
+    onboardingFlowId,
     handleError,
     signUp,
     finishOnboarding,
@@ -369,6 +407,7 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
       setIncodeToken(session.token);
     });
     const complete = Incode.getInstance().onStepCompleted;
+    const onError = Incode.getInstance().onStepError;
     return [
       complete({
         module: 'SelfieScan',
@@ -514,9 +553,28 @@ export function useIncodeOnboarding(opts: UseIncodeOnboardingOpts) {
             finishOnboarding('IncodeSkipIDComplete');
             approveCalledRef.current = null;
           } else {
-            handleError(AuthErrorMessageEnum.SELFIE_FAILED);
-            finishOnboarding('SignUpError');
+            //   handleError(AuthErrorMessageEnum.SELFIE_FAILED);
+            //  return finishOnboarding('SignUpError');
           }
+        },
+      }),
+
+      onError({
+        module: 'SelfieScan',
+        listener: (e) => {
+          globalLogger.error('SelfieScan error:', e);
+        },
+      }),
+      onError({
+        module: 'IdScan',
+        listener: (e) => {
+          globalLogger.warn('IdScan error:', e);
+        },
+      }),
+      onError({
+        module: 'FaceMatch',
+        listener: async (e) => {
+          globalLogger.error('FaceMatch error', e);
         },
       }),
     ];
