@@ -1440,11 +1440,6 @@
   resolved "https://registry.npmjs.org/@iarna/toml/-/toml-2.2.5.tgz"
   integrity sha512-trnsAYxU3xnS1gPHPyU961coFyLkh4gAD/0zQ5mymY4yOZ+CYvsPqUbOFSw0aDM4y0tV7tiFxL/1XfXPNC6IPg==
 
-"@incode-sdks/react-native-incode-sdk@^6.0.0":
-  version "6.0.0"
-  resolved "https://registry.npmjs.org/@incode-sdks/react-native-incode-sdk/-/react-native-incode-sdk-6.0.0.tgz"
-  integrity sha512-raLjw2p+rDQIaSe+/+fbLqpgfgjA1AstspVCFw3zocoYFiLGFAy69espfHcBfXF3Mx65hO15uqIPQmqIxYKAmw==
-
 "@isaacs/ttlcache@^1.4.1":
   version "1.4.1"
   resolved "https://registry.npmjs.org/@isaacs/ttlcache/-/ttlcache-1.4.1.tgz"
