@@ -1,8 +1,12 @@
 const child_process = require('child_process');
+const os = require('os');
 
 module.exports = {
   name: 'pod-install',
   factory() {
+    if (os.platform() === "win32") {
+      return {};
+    }
     return {
       hooks: {
         afterAllInstalled(project, options) {
