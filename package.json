@@ -164,7 +164,6 @@
   },
   "dependencies": {
     "@bit-ui-libs/common": "^1.0.13",
-    "@incode-sdks/react-native-incode-sdk": "^6.0.0",
     "@tanstack/react-query": "*",
     "base-64": "^1.0.0",
     "core-js": "^3.33.3",
