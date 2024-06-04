@@ -26,6 +26,7 @@ interface AuthStoreState {
   dateOfBirth: string;
   selfieScanSuccess: boolean;
   signUpOrgId: string;
+  signUpEmail: string;
   setUserId: (userId: string) => void;
   setAuthMode: (authMode: AuthModes) => void;
   setPhotoPath: (photoPath: string) => void;
@@ -41,6 +42,7 @@ interface AuthStoreState {
   setOrgInvitationState: (payload: { isInvitedToOrg: boolean }) => void;
   setSelfieScanSuccess: (selfieScanSuccess: boolean) => void;
   setSignUpOrgId: (signUpOrgId: string) => void;
+  setSignUpEmail: (signUpEmail: string) => void;
   // Recommended function to use when logic needs to imperatively logout of the app.
   // setAuthenticated is another way, however, does not clean up EncryptedStorage items.
   logout: () => void;
@@ -63,6 +65,7 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
   dateOfBirth: '',
   selfieScanSuccess: false,
   signUpOrgId: '',
+  signUpEmail: '',
   setUserId: (userId) => set({ userId }),
   setAuthMode: (authMode) => set({ authMode }),
   setPhotoPath: (photoPath) => set({ photoPath }),
@@ -78,6 +81,7 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
   setOrgInvitationState: (payload) => set(payload),
   setSignUpOrgId: (orgId) => set({ signUpOrgId: orgId }),
   setSelfieScanSuccess: (selfieScanSuccess) => set({ selfieScanSuccess }),
+  setSignUpEmail: (signUpEmail) => set({ signUpEmail }),
   logout: async () => {
     await clearAuthData();
     set({ isAuthenticated: false });
